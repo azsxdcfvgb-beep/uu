@@ -61,7 +61,7 @@ jobs:
           echo "项目目录: $DIR"
           echo "dir=$DIR" >> $GITHUB_OUTPUT
 
-          # 修复 JVM target 不匹配问题
+          # 1. 修复 JVM target
           cat > "$DIR/app/build.gradle.kts" << 'EOF'
           plugins {
               id("com.android.application")
@@ -101,7 +101,16 @@ jobs:
               debugImplementation("androidx.compose.ui:ui-tooling")
           }
           EOF
-          echo "已修复 app/build.gradle.kts"
+
+          # 2. 修复 ExperimentalFoundationApi
+          MAIN="$DIR/app/src/main/java/com/youbili/app/MainActivity.kt"
+          if ! grep -q "ExperimentalFoundationApi" "$MAIN"; then
+            sed -i 's/import androidx.compose.foundation.combinedClickable/import androidx.compose.foundation.ExperimentalFoundationApi\nimport androidx.compose.foundation.combinedClickable/' "$MAIN"
+            sed -i 's/@OptIn(ExperimentalMaterialApi::class)/@OptIn(ExperimentalMaterialApi::class, ExperimentalFoundationApi::class)/' "$MAIN"
+            echo "已添加 ExperimentalFoundationApi OptIn"
+          fi
+
+          echo "修复完成"
 
       - name: Build debug APK
         working-directory: ${{ steps.unzip.outputs.dir }}
