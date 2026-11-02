@@ -35,6 +35,7 @@ jobs:
           gradle-version: '8.9'
 
       - name: Unzip project
+        id: unzip
         run: |
           if [ -f YouBili-Android-fixed.zip ]; then
             ZIP=YouBili-Android-fixed.zip
@@ -47,26 +48,30 @@ jobs:
           fi
           echo "使用压缩包: $ZIP"
           unzip -q "$ZIP" -d extracted
+          echo "解压后内容："
+          find extracted -maxdepth 3 -type f | head -30
+
           if [ -f extracted/YouBili-Android/settings.gradle.kts ]; then
-            echo "PROJECT_DIR=extracted/YouBili-Android" >> $GITHUB_ENV
+            DIR="extracted/YouBili-Android"
           elif [ -f extracted/settings.gradle.kts ]; then
-            echo "PROJECT_DIR=extracted" >> $GITHUB_ENV
+            DIR="extracted"
           else
-            echo "解压后找不到项目"
+            echo "解压后找不到 settings.gradle.kts"
             find extracted -name "settings.gradle.kts" || true
             exit 1
           fi
-          echo "项目目录: $PROJECT_DIR"
-          ls -la "$PROJECT_DIR"
+          echo "项目目录: $DIR"
+          ls -la "$DIR"
+          echo "dir=$DIR" >> $GITHUB_OUTPUT
 
       - name: Build debug APK
-        working-directory: ${{ env.PROJECT_DIR }}
+        working-directory: ${{ steps.unzip.outputs.dir }}
         run: gradle --no-daemon --stacktrace :app:assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: YouBili-debug-apk
-          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/app-debug.apk
+          path: ${{ steps.unzip.outputs.dir }}/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
