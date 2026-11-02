@@ -1,1 +1,54 @@
+name: Unzip and build YouBili APK
 
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'YouBili-Android-mobile-cloud-build.zip'
+      - '.github/workflows/unzip-build.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK
+        run: sdkmanager 'platform-tools' 'platforms;android-35' 'build-tools;35.0.0'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Unzip project
+        run: |
+          unzip -q YouBili-Android-mobile-cloud-build.zip -d extracted
+          test -f extracted/YouBili-Android/settings.gradle.kts
+          test -f extracted/YouBili-Android/app/build.gradle.kts
+
+      - name: Build APK
+        working-directory: extracted/YouBili-Android
+        run: gradle --no-daemon :app:assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: YouBili-debug-apk
+          path: extracted/YouBili-Android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
